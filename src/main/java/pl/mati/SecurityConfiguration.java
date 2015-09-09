@@ -40,7 +40,7 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 
     @Bean
     public SessionRepository<ExpiringSession> sessionRepository() {
-        return new JPASessionRepository();
+        return new JPASessionRepository(10);
     }
 
     @Bean

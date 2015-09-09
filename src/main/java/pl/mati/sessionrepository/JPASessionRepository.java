@@ -13,25 +13,22 @@ import java.util.Map;
 
 public class JPASessionRepository implements SessionRepository<ExpiringSession> {
 
-    private Integer defaultMaxInactiveInterval;
+    private int defaultMaxInactiveInterval = -1;
 
     @Autowired
     private SpringSessionRepository springSessionRepository;
 
     public JPASessionRepository() {
-        this(null);
     }
 
-    public JPASessionRepository(Integer defaultMaxInactiveInterval) {
+    public JPASessionRepository(int defaultMaxInactiveInterval) {
         this.defaultMaxInactiveInterval = defaultMaxInactiveInterval;
     }
 
     @Override
     public ExpiringSession createSession() {
         ExpiringSession result = new MapSession();
-        if(defaultMaxInactiveInterval != null) {
-            result.setMaxInactiveIntervalInSeconds(defaultMaxInactiveInterval);
-        }
+        result.setMaxInactiveIntervalInSeconds(defaultMaxInactiveInterval);
         return result;
     }
 
@@ -45,7 +42,15 @@ public class JPASessionRepository implements SessionRepository<ExpiringSession> 
     @Override
     public ExpiringSession getSession(String id) {
         SessionEntity sessionEntity = springSessionRepository.findOne(id);
-        return sessionEntity == null ? null : convertToSession(sessionEntity);
+        ExpiringSession saved = sessionEntity == null ? null : convertToSession(sessionEntity);
+        if(saved == null) {
+            return null;
+        }
+        if(saved.isExpired()) {
+            delete(saved.getId());
+            return null;
+        }
+        return saved;
     }
 
     @Override
@@ -89,6 +94,7 @@ public class JPASessionRepository implements SessionRepository<ExpiringSession> 
         mapSession.setId(sessionEntity.getId());
         mapSession.setLastAccessedTime(sessionEntity.getLastAccessedTime());
         mapSession.setCreationTime(sessionEntity.getCreationTime());
+        mapSession.setMaxInactiveIntervalInSeconds(this.defaultMaxInactiveInterval);
 
         SessionAttributes attributes = deserializeAttributes(sessionEntity);
         if (attributes != null) {
@@ -119,7 +125,7 @@ public class JPASessionRepository implements SessionRepository<ExpiringSession> 
         return defaultMaxInactiveInterval;
     }
 
-    public void setDefaultMaxInactiveInterval(Integer defaultMaxInactiveInterval) {
+    public void setDefaultMaxInactiveInterval(int defaultMaxInactiveInterval) {
         this.defaultMaxInactiveInterval = defaultMaxInactiveInterval;
     }
 
